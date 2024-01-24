@@ -1,43 +1,60 @@
 package web;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.mock.web.MockHttpServletResponse;
+import model.City;
+import model.Weather;
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.junit.jupiter.api.*;
+import util.HibernateCfg;
 
-import javax.servlet.ServletException;
-import java.io.IOException;
+import java.time.LocalDate;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 
 class MyServletTest {
-    private MyServlet servlet;
-    private MockHttpServletRequest request;
-    private MockHttpServletResponse response;
+    private static SessionFactory sessionFactory;
+    private Session session;
+
+    @BeforeAll
+    public static void setup() {
+        sessionFactory = HibernateCfg.getSessionFactory();
+        System.out.println("SessionFactory created");
+    }
+
+    @AfterAll
+    public static void tearDown() {
+        if (sessionFactory != null) sessionFactory.close();
+        System.out.println("SessionFactory destroyed");
+    }
 
     @BeforeEach
-    public void setUp() {
-        servlet = new MyServlet();
-        request = new MockHttpServletRequest();
-        response = new MockHttpServletResponse();
+    public void openSession() {
+        session = sessionFactory.openSession();
+        System.out.println("Session created");
     }
 
-    @Test
-    void doGet() throws ServletException, IOException {
-        String city = "Moscow";
-        request.setParameter("key", "bc092a2766b9459fa39120259232712");
-        request.setParameter("num_of_days", "1");
-        request.setParameter("day", "today");
-        request.setParameter("extra", "utcDateTime");
-        request.setParameter("format", "json");
-        request.setParameter("showlocaltime", "yes");
-        request.setParameter("city", city);
-        servlet.doGet(request, response);
-        assertAll(
-                () -> assertEquals(200, response.getStatus()),
-                () -> assertTrue(response.getContentAsString().contains("Moscow, Russia")));
+    @AfterEach
+    public void closeSession() {
+        if (session != null) session.close();
+        System.out.println("Session closed\n");
     }
+
+
+    @Test
+    public void testCreate() {
+        session.beginTransaction();
+        Weather weather = new Weather(LocalDate.now(), 5, 2);
+        City city = new City("test");
+        session.save(city);
+        weather.setCity(city);
+        Integer savedId = (Integer) session.save(weather);
+        assertTrue(savedId > 0);
+        assertEquals("test", weather.getCity().getCityName());
+    }
+
+
 }
 
 
